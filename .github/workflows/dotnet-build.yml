@@ -1,0 +1,92 @@
+name: dotnet-build
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "**/*.cs"
+      - "**/*.csproj"
+      - "**/*.sln"
+  workflow_dispatch:
+
+concurrency:
+  group: dotnet-build-${{ github.event.pull_request.head.sha || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  dotnet-build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+      DOTNET_RUN_ARGUMENTS: ${{ vars.DOTNET_RUN_ARGUMENTS || 'new print' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Discover C# projects
+        id: discover
+        run: |
+          mapfile -t projects < <(git ls-files '*.csproj')
+          if [ ${#projects[@]} -eq 0 ]; then
+            echo "No .csproj files found."
+            exit 1
+          fi
+          {
+            echo "projects<<EOF"
+            printf '%s\n' "${projects[@]}"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Restore, build, and run projects
+        run: |
+          mkdir -p run-logs
+          summary="run-logs/ci-summary.jsonl"
+          status=0
+
+          while IFS= read -r project; do
+            [ -n "$project" ] || continue
+            project_name="$(basename "$project" .csproj)"
+            log="run-logs/${project_name}.log"
+            echo "## $project" > "$log"
+
+            restore_status=0
+            build_status=0
+            run_status=0
+
+            dotnet restore "$project" >> "$log" 2>&1 || restore_status=$?
+            if [ "$restore_status" -eq 0 ]; then
+              dotnet build "$project" --configuration Release --no-restore >> "$log" 2>&1 || build_status=$?
+            else
+              build_status=1
+            fi
+
+            if [ "$build_status" -eq 0 ] && grep -q '<OutputType>Exe</OutputType>' "$project"; then
+              echo "\n## dotnet run -- $DOTNET_RUN_ARGUMENTS" >> "$log"
+              timeout 20s dotnet run --project "$project" --configuration Release --no-build -- $DOTNET_RUN_ARGUMENTS >> "$log" 2>&1 || run_status=$?
+            fi
+
+            printf '{"project":"%s","restore":%s,"build":%s,"run":%s,"log":"%s"}\n' \
+              "$project" "$restore_status" "$build_status" "$run_status" "$log" >> "$summary"
+
+            if [ "$restore_status" -ne 0 ] || [ "$build_status" -ne 0 ] || [ "$run_status" -ne 0 ]; then
+              status=1
+            fi
+          done <<< "${{ steps.discover.outputs.projects }}"
+
+          cat "$summary"
+          exit "$status"
+
+      - name: Upload run logs
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: dotnet-run-logs
+          path: run-logs/*
+          if-no-files-found: ignore
