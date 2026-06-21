@@ -184,6 +184,17 @@ Falls im Verlauf der Jürgen-Issues ein UML-Klassendiagramm gefordert wird, erg�
 ```
 @plantUML.eval(png)
 
+## Klassenstruktur
+
+Die Anwendung verwendet vier zentrale Klassen:
+
+- `Grundstueck` bündelt Stammdaten wie Flurstücknummer, Lage, Eigentümer und die zugehörigen Bauflächen.
+- `Bauflaeche` beschreibt eine einzelne Fläche mit Größe, aktueller Nutzung, Bebaubarkeit, B-Plan-Daten, Bodenrichtwert und Status.
+- `Bauvorhaben` verknüpft Antragsteller, geplante Nutzung, Zeitplan, Status und die vorgesehenen Bauflächen.
+- `Antragsteller` enthält Name, Kontaktdaten und optional eine Firma.
+
+Die Beziehungen bilden die User Story ab: Ein Grundstück kann mehrere Bauflächen enthalten, und ein Bauvorhaben kann eine oder mehrere Bauflächen nutzen.
+
 ## Aufgabenmaterial
 
 - [Agent-Workflow und interne Aufgabenstruktur](task.md)
