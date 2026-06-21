@@ -43,6 +43,10 @@ namespace Baufflaechenverwaltung
 
         public void FlaecheReservieren()
         {
+            if (Status == FlaechenStatus.Bebaut)
+            {
+                throw new InvalidOperationException($"Fläche {FlaechenId} ist bereits bebaut und kann nicht reserviert werden.");
+            }
             Status = FlaechenStatus.Reserviert;
         }
     }
@@ -54,6 +58,10 @@ namespace Baufflaechenverwaltung
 
         public void BauvorhabenAnlegen(Bauvorhaben vorhaben, Bauflaeche flaeche)
         {
+            if (flaeche.Status == FlaechenStatus.Bebaut)
+            {
+                throw new InvalidOperationException($"Fläche {flaeche.FlaechenId} ist bereits bebaut und kann nicht für ein neues Bauvorhaben verwendet werden.");
+            }
             vorhaben.ZugeordneteFlaechen.Add(flaeche);
             flaeche.Status = FlaechenStatus.Bebaut;
         }
@@ -79,7 +87,7 @@ namespace Baufflaechenverwaltung
             grundstueck.Bauflaechen.Add(flaeche);
 
             var antragsteller = new Antragsteller { Name = "Erika Musterfrau", Firma = "Bau AG" };
-            var vorhaben = new Bauvorhaben 
+            var vorhaben1 = new Bauvorhaben 
             {
                 Titel = "Wohnhaus Nord", 
                 Antragsteller = antragsteller, 
@@ -93,11 +101,31 @@ namespace Baufflaechenverwaltung
             flaeche.FlaecheReservieren();
             Console.WriteLine($"Fläche nach Reservierung: {flaeche.Status}");
 
-            grundstueck.BauvorhabenAnlegen(vorhaben, flaeche);
-            vorhaben.StatusAktualisieren(BauvorhabenStatus.Genehmigt);
+            grundstueck.BauvorhabenAnlegen(vorhaben1, flaeche);
+            Console.WriteLine($"Fläche Status nach Bauvorhaben 1: {flaeche.Status}");
 
-            Console.WriteLine($"Bauvorhaben {vorhaben.Titel} Status: {vorhaben.Status}");
-            Console.WriteLine($"Fläche Status nach Baubeginn: {flaeche.Status}");
+            // Fehlerfall demonstrieren: Erneute Reservierung einer bebauten Fläche
+            try
+            {
+                Console.WriteLine("Versuch, bebaute Fläche erneut zu reservieren...");
+                flaeche.FlaecheReservieren();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Fehler: {ex.Message}");
+            }
+
+            // Fehlerfall demonstrieren: Erneute Verwendung einer bebauten Fläche für neues Vorhaben
+            try
+            {
+                var vorhaben2 = new Bauvorhaben { Titel = "Gewerbebau Ost" };
+                Console.WriteLine("Versuch, bebaute Fläche für neues Bauvorhaben zu nutzen...");
+                grundstueck.BauvorhabenAnlegen(vorhaben2, flaeche);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Fehler: {ex.Message}");
+            }
         }
     }
 }
