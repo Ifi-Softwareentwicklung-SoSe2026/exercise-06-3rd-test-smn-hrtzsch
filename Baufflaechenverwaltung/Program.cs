@@ -3,6 +3,7 @@ using System.Collections.Generic;
 
 namespace Baufflaechenverwaltung
 {
+    // The README documents how these domain classes relate to each other.
     public enum FlaechenStatus { Frei, Reserviert, Bebaut }
     public enum BauvorhabenStatus { AntragEingereicht, Genehmigt, Abgelehnt, InBearbeitung, Abgeschlossen }
 
